@@ -22,6 +22,7 @@ Contributors
 * Aaron Daubman
 * Johan Elmerfjord
 * David H
+* Jeff Hinrichs
 * Jeroen Idserda
 * Todd Neal
 * nixscripter
@@ -29,5 +30,7 @@ Contributors
 * Dave O'Connor
 * Dennnis O'Reilly
 * phut
+* Dan Poirier
 * Jason Ting
 * Scott G Waters
+

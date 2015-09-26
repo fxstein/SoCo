@@ -9,6 +9,21 @@ people`_ at its `GitHub repository`_
 For more background on the project, please see Rahim's `blog post
 <http://www.hirahim.com/blog/2012/04/29/dissecting-the-sonos-controller/>`_.
 
+.. image:: https://travis-ci.org/SoCo/SoCo.svg?branch=master
+   :target: https://travis-ci.org/SoCo/SoCo
+   :alt: Build Status
+
+.. image:: https://img.shields.io/requires/github/SoCo/SoCo/master.svg?style=flat
+   :target: https://requires.io/github/SoCo/SoCo/requirements/?branch=master
+   :alt: Requirements Status
+
+.. image:: https://img.shields.io/pypi/v/soco.svg?style=flat
+    :target: https://pypi.python.org/pypi/soco/
+    :alt: Latest PyPI version
+
+.. image:: https://img.shields.io/pypi/dm/soco.svg?style=flat
+    :target: https://pypi.python.org/pypi/soco/
+    :alt: Number of PyPI downloads
 
 Installation
 ------------
@@ -29,8 +44,8 @@ Requests will be installed automatically for you. If not, you can use:
 Basic Usage
 -----------
 
-You can interact with a Sonos Zone Player through a SoCo object. If you know the
-IP address of a Zone Player, you can create a SoCo object directly:
+You can interact with a Sonos Zone Player through a SoCo object. If you know
+the IP address of a Zone Player, you can create a SoCo object directly:
 
 .. code:: python
 
@@ -42,26 +57,26 @@ IP address of a Zone Player, you can create a SoCo object directly:
     >>> my_zone.volume = 6
 
 
-But perhaps the easiest way is to use the module-level `discover` function. This
-will find all the Zone Players on your network, and return a python iterable
-containing them:
+But perhaps the easiest way is to use the module-level `discover` function.
+This will find all the Zone Players on your network, and return a python
+set containing them:
 
 .. code:: python
 
     >>> import soco
-    >>> for zones in soco.discover():
+    >>> for zone in soco.discover():
     ...        print zone.player_name
     Living Room
     Kitchen
 
 
-If you prefer a list to an iterable:
+If you prefer a list to a set:
 
 .. code:: python
 
-    >>> zone_list = list(soco.discover)
+    >>> zone_list = list(soco.discover())
     >>> zone_list
-    SoCo("192.168.1.101"), SoCo("192.168.1.102")]
+    [SoCo("192.168.1.101"), SoCo("192.168.1.102")]
     >>> zone_list[0].mute()
 
 Of course, you can also play music!
@@ -75,8 +90,10 @@ Of course, you can also play music!
         sonos = SoCo('192.168.1.102') # Pass in the IP of your Sonos speaker
         # You could use the discover function instead, if you don't know the IP
 
-        # Pass in a URI to a media file to have it streamed through the Sonos speaker
-        sonos.play_uri('http://archive.org/download/TenD2005-07-16.flac16/TenD2005-07-16t10Wonderboy_64kb.mp3')
+        # Pass in a URI to a media file to have it streamed through the Sonos 
+        # speaker
+        sonos.play_uri(
+            'http://archive.org/download/TenD2005-07-16.flac16/TenD2005-07-16t10Wonderboy_64kb.mp3')
 
         track = sonos.get_current_track_info()
 
@@ -91,7 +108,8 @@ Of course, you can also play music!
 Example Applications
 --------------------
 
-To show off what can be made with SoCo, a simple web application is included in the ``examples`` folder.
+To show off what can be made with SoCo, a simple web application is included in
+the ``examples`` folder.
 
 .. figure:: https://github.com/SoCo/SoCo/raw/master/examples/webapp/screenshot.png
    :alt: Screenshot of web app
@@ -149,6 +167,7 @@ SoCo supports the following controls amongst others:
 -  Get the saved favorite radio stations and shows (title and stream
    URI)
 -  Search for and play item from your music library
+-  Start a music library update and determine if one is in progress
 
 SoCo also supports lower level access from Python to all Sonos services (eg
 Alarms)
@@ -158,7 +177,7 @@ Related Projects
 ----------------
 
 Socos is a command line tool for controlling Sonos devices. It is developed
-in conjunction with Soco, but in a `separate repository <https://github.com/SoCo/socos>`_
+in conjunction with Soco, but in a `separate repository <https://github.com/SoCo/socos>`_.
 
 More of a Ruby fan? Not a problem, `Sam Soffes`_ is building out an
 awesome `Ruby gem`_.

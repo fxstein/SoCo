@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" Tests for the services module """
+"""Tests for the services module."""
 
 # These tests require pytest, and mock. Mock comes with Python 3.3, but has
 # also been backported for Python 2.7. It is available on pypi.
@@ -7,8 +7,9 @@
 from __future__ import unicode_literals
 
 import pytest
-from soco.services import Service
+
 from soco.exceptions import SoCoUPnPException
+from soco.services import Service
 
 try:
     from unittest import mock
@@ -69,7 +70,7 @@ DUMMY_VALID_ACTION = "".join([
 
 @pytest.fixture()
 def service():
-    """ A mock Service, for use as a test fixture """
+    """A mock Service, for use as a test fixture."""
 
     mock_soco = mock.MagicMock()
     mock_soco.ip_address = "192.168.1.101"
@@ -77,17 +78,18 @@ def service():
 
 
 def test_init_defaults(service):
-    """ Check default properties are set up correctly """
+    """Check default properties are set up correctly."""
     assert service.service_type == "Service"
     assert service.version == 1
     assert service.service_id == "Service"
     assert service.base_url == "http://192.168.1.101:1400"
     assert service.control_url == "/Service/Control"
     assert service.scpd_url == "/xml/Service1.xml"
+    assert service.event_subscription_url == "/Service/Event"
 
 
 def test_method_dispatcher_function_creation(service):
-    """ Testing __getattr__ functionality """
+    """Testing __getattr__ functionality."""
     import inspect
     # There should be no testing method
     assert 'testing' not in service.__dict__.keys()
@@ -97,24 +99,26 @@ def test_method_dispatcher_function_creation(service):
     assert 'testing' in service.__dict__.keys()
     assert service.testing.__name__ == "testing"
     # check that send_command is actually called when we invoke a method
-    service.send_command = lambda x, y: "Hello {}".format(x)
+    service.send_command = lambda x, y: "Hello {0}".format(x)
     assert service.testing(service) == "Hello testing"
 
 
 def test_method_dispatcher_arg_count(service):
-    """ _dispatcher should take zero or one arguments """
+    """_dispatcher should pass its args to send_command."""
     service.send_command = mock.Mock()
     # http://bugs.python.org/issue7688
     # __name__ must be a string in python 2
     method = service.__getattr__(str('test'))
     assert method('onearg')
+    service.send_command.assert_called_with('test', 'onearg')
     assert method()  # no args
-    with pytest.raises(TypeError):
-        method('two', 'args')
+    service.send_command.assert_called_with('test')
+    assert method('one', cache_timeout=4)  # one arg + cache_timeout
+    service.send_command.assert_called_with('test', 'one', cache_timeout=4)
 
 
 def test_wrap(service):
-    """ wrapping args in XML properly """
+    """wrapping args in XML properly."""
     assert service.wrap_arguments([('first', 'one'), ('second', 2)]) == \
         "<first>one</first><second>2</second>"
     assert service.wrap_arguments() == ""
@@ -127,20 +131,20 @@ def test_wrap(service):
 
 
 def test_unwrap(service):
-    """ unwrapping args from XML """
+    """unwrapping args from XML."""
     assert service.unwrap_arguments(DUMMY_VALID_RESPONSE) == {
         "CurrentLEDState": "On",
         "Unicode": "μИⅠℂ☺ΔЄ💋"}
 
 
 def test_build_command(service):
-    """ Test creation of SOAP body and headers from a command """
+    """Test creation of SOAP body and headers from a command."""
     headers, body = service.build_command('SetAVTransportURI', [
         ('InstanceID', 0),
         ('CurrentURI', 'URI'),
         ('CurrentURIMetaData', ''),
         ('Unicode', 'μИⅠℂ☺ΔЄ💋')
-        ])
+    ])
     assert body == DUMMY_VALID_ACTION
     assert headers == {
         'Content-Type': 'text/xml; charset="utf-8"',
@@ -149,26 +153,57 @@ def test_build_command(service):
 
 
 def test_send_command(service):
-    """ Calling a command should result in a http request """
-    with mock.patch('requests.post') as fake_post:
-        response = fake_post()
-        response.headers = {}
-        response.status_code = 200
-        response.text = DUMMY_VALID_RESPONSE
+    """Calling a command should result in a http request, unless the cache is
+    hit."""
+    response = mock.MagicMock()
+    response.headers = {}
+    response.status_code = 200
+    response.text = DUMMY_VALID_RESPONSE
+    with mock.patch('requests.post', return_value=response) as fake_post:
         result = service.send_command('SetAVTransportURI', [
             ('InstanceID', 0),
             ('CurrentURI', 'URI'),
             ('CurrentURIMetaData', ''),
             ('Unicode', 'μИⅠℂ☺ΔЄ💋')
-            ])
-        fake_post.assert_called_with(
-            'http://192.168.1.101:1400/Service/Control',
-            headers=mock.ANY, data=DUMMY_VALID_ACTION)
+        ], cache_timeout=2)
         assert result == {'CurrentLEDState': 'On', 'Unicode': "μИⅠℂ☺ΔЄ💋"}
+        fake_post.assert_called_once_with(
+            'http://192.168.1.101:1400/Service/Control',
+            headers=mock.ANY, data=DUMMY_VALID_ACTION.encode('utf-8'))
+        # Now the cache should be primed, so try it again
+        fake_post.reset_mock()
+        result = service.send_command('SetAVTransportURI', [
+            ('InstanceID', 0),
+            ('CurrentURI', 'URI'),
+            ('CurrentURIMetaData', ''),
+            ('Unicode', 'μИⅠℂ☺ΔЄ💋')
+        ], cache_timeout=0)
+        # The cache should be hit, so there should be no http request
+        assert not fake_post.called
+        # but this should not affefct a call with different params
+        fake_post.reset_mock()
+        result = service.send_command('SetAVTransportURI', [
+            ('InstanceID', 1),
+            ('CurrentURI', 'URI2'),
+            ('CurrentURIMetaData', 'abcd'),
+            ('Unicode', 'μИⅠℂ☺ΔЄ💋')
+        ])
+        assert fake_post.called
+        # calling again after the time interval will avoid the cache
+        fake_post.reset_mock()
+        import time
+        time.sleep(2)
+        result = service.send_command('SetAVTransportURI', [
+            ('InstanceID', 0),
+            ('CurrentURI', 'URI'),
+            ('CurrentURIMetaData', ''),
+            ('Unicode', 'μИⅠℂ☺ΔЄ💋')
+        ])
+        assert fake_post.called
 
 
 def test_handle_upnp_error(service):
-    """ Check errors are extracted properly """
+    """Check errors are extracted properly."""
     with pytest.raises(SoCoUPnPException) as E:
         service.handle_upnp_error(DUMMY_ERROR)
     assert "UPnP Error 607 received: Signature Failure from 192.168.1.101" \
